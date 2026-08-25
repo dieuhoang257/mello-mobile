@@ -584,32 +584,29 @@ Quy tắc nhận xét: Nhận xét khách quan, ẩn danh (Reviewer), chuẩn fo
       }
     });
 
-    // Call Gemini 3.7 / 2.5 Flash Streaming API
+    // Call Gemini Streaming API with robust turn alternation and instant response
     async function streamGeminiResponse(userText, attachment, msgId) {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:streamGenerateContent?alt=sse&key=${apiKey}`;
-
-      // Build conversation contents
+      // Build strictly alternating conversation contents
       const contents = [];
-
-      // Add recent history for context (last 6 turns)
-      const recentHistory = chatHistory.slice(-8);
-      recentHistory.forEach(item => {
-        if (item.role === 'user') {
+      
+      // Get previous history excluding the current message we just added
+      const previousTurns = chatHistory.slice(0, -1).slice(-6);
+      let lastRole = null;
+      
+      for (const item of previousTurns) {
+        const role = item.role === 'user' ? 'user' : 'model';
+        if (role !== lastRole && item.text) {
           contents.push({
-            role: 'user',
+            role: role,
             parts: [{ text: item.text }]
           });
-        } else if (item.role === 'assistant') {
-          contents.push({
-            role: 'model',
-            parts: [{ text: item.text }]
-          });
+          lastRole = role;
         }
-      });
+      }
 
       // Prepare Current User Turn
       const currentParts = [];
-      if (attachment) {
+      if (attachment && attachment.data) {
         const base64Data = attachment.data.split(',')[1];
         currentParts.push({
           inline_data: {
@@ -620,6 +617,11 @@ Quy tắc nhận xét: Nhận xét khách quan, ẩn danh (Reviewer), chuẩn fo
       }
       if (userText) {
         currentParts.push({ text: userText });
+      }
+
+      // Ensure last role before this is not 'user'
+      if (contents.length > 0 && contents[contents.length - 1].role === 'user') {
+        contents.pop();
       }
 
       contents.push({
@@ -634,59 +636,85 @@ Quy tắc nhận xét: Nhận xét khách quan, ẩn danh (Reviewer), chuẩn fo
         contents: contents,
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 8192,
-          thinkingConfig: {
-            thinkingBudget: 0 // Zero thinking latency -> Instant sub-second response
-          }
+          maxOutputTokens: 8192
         }
       };
 
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      const streamUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:streamGenerateContent?alt=sse&key=${apiKey}`;
+      const syncUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || `HTTP ${response.status}`);
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
       let accumulatedText = '';
-      let buffer = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      try {
+        // Attempt Streaming first for real-time typing
+        const response = await fetch(streamUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
 
-        buffer += decoder.decode(value, { stream: true });
-        const events = buffer.split('\n\n');
-        buffer = events.pop(); // Keep partial event in buffer
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+        }
 
-        for (const event of events) {
-          const lines = event.split('\n');
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const jsonStr = line.slice(6).trim();
-              if (!jsonStr || jsonStr === '[DONE]') continue;
-              try {
-                const data = JSON.parse(jsonStr);
-                const parts = data.candidates?.[0]?.content?.parts || [];
-                for (const part of parts) {
-                  if (part.text) {
-                    accumulatedText += part.text;
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const events = buffer.split('\n\n');
+          buffer = events.pop();
+
+          for (const event of events) {
+            const lines = event.split('\n');
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const jsonStr = line.slice(6).trim();
+                if (!jsonStr || jsonStr === '[DONE]') continue;
+                try {
+                  const data = JSON.parse(jsonStr);
+                  const parts = data.candidates?.[0]?.content?.parts || [];
+                  for (const part of parts) {
+                    if (part.text) {
+                      accumulatedText += part.text;
+                    }
                   }
+                  if (accumulatedText) {
+                    updateMelloMessage(msgId, accumulatedText);
+                  }
+                } catch (e) {
+                  // Ignore partial chunks
                 }
-                if (accumulatedText) {
-                  updateMelloMessage(msgId, accumulatedText);
-                }
-              } catch (e) {
-                // Ignore incomplete SSE chunks
               }
             }
           }
+        }
+      } catch (streamErr) {
+        console.warn('Stream failed, falling back to direct generateContent:', streamErr);
+        // Fallback to standard fast generateContent
+        const syncResponse = await fetch(syncUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!syncResponse.ok) {
+          const errorData = await syncResponse.json().catch(() => ({}));
+          throw new Error(errorData.error?.message || `HTTP ${syncResponse.status}: ${streamErr.message}`);
+        }
+
+        const syncData = await syncResponse.json();
+        const text = syncData.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          accumulatedText = text;
+          updateMelloMessage(msgId, accumulatedText);
+        } else {
+          throw new Error('Google API không trả về nội dung text.');
         }
       }
 
