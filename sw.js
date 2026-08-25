@@ -1,16 +1,6 @@
-﻿const CACHE_NAME = 'mello-mobile-v1';
-const ASSETS = [
-  './',
-  './index.html',
-  './manifest.json',
-  './icon-192.png',
-  './icon-512.png'
-];
+const CACHE_NAME = 'mello-mobile-v2';
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
-  );
   self.skipWaiting();
 });
 
@@ -18,9 +8,7 @@ self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) return caches.delete(key);
-        })
+        keys.map((key) => caches.delete(key))
       );
     })
   );
@@ -28,8 +16,14 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  // Pass through external API calls (Gemini API, CDNs)
-  if (e.request.url.includes('googleapis.com') || e.request.url.includes('cdn')) {
+  // Always fetch latest HTML from network
+  if (e.request.mode === 'navigate' || e.request.destination === 'document') {
+    e.respondWith(
+      fetch(e.request).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+  if (e.request.url.includes('googleapis.com') || e.request.url.includes('cdn') || e.request.url.includes('unpkg')) {
     return;
   }
   e.respondWith(

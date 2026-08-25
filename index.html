@@ -238,7 +238,12 @@ Quy tắc nhận xét: Nhận xét khách quan, ẩn danh (Reviewer), chuẩn fo
 
     // State Management
     let apiKey = localStorage.getItem('mello_api_key') || '';
-    let selectedModel = localStorage.getItem('mello_model') || 'gemini-3.7-flash';
+    let storedModel = localStorage.getItem('mello_model');
+    if (!storedModel || storedModel.startsWith('gemini-2.')) {
+      storedModel = 'gemini-3.7-flash';
+      localStorage.setItem('mello_model', 'gemini-3.7-flash');
+    }
+    let selectedModel = storedModel;
     let chatHistory = JSON.parse(localStorage.getItem('mello_chat_history') || '[]');
     let currentAttachment = null;
     let isGenerating = false;
