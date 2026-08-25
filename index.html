@@ -1,0 +1,701 @@
+﻿<!DOCTYPE html>
+<html lang="vi" class="dark h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Mello AI - Antigravity Mobile</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  
+  <!-- Tailwind CSS & Fonts -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            },
+            darkbg: '#090d16',
+            darkpanel: '#0f172a',
+            darkbubble: '#1e293b'
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Marked Markdown & Highlight.js -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Safe Area & Mobile Ergonomics */
+    body {
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+      -webkit-tap-highlight-color: transparent;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    .prose p { margin-bottom: 0.5rem; }
+    .prose p:last-child { margin-bottom: 0; }
+    .prose pre { background-color: #020617; border-radius: 0.5rem; padding: 0.75rem; overflow-x: auto; margin: 0.5rem 0; font-size: 0.85rem; }
+    .prose code { font-family: monospace; }
+    .prose table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.85rem; }
+    .prose th, .prose td { border: 1px solid #334155; padding: 0.4rem 0.6rem; text-align: left; }
+    .prose th { background-color: #1e293b; font-weight: 600; }
+    .pulse-mic {
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+    /* Hide scrollbars */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-darkbg text-slate-100 flex flex-col h-screen overflow-hidden select-none">
+
+  <!-- TOP APP BAR -->
+  <header class="bg-darkpanel/90 backdrop-blur border-b border-slate-800 px-4 py-3 flex items-center justify-between z-20 shrink-0">
+    <div class="flex items-center space-x-3">
+      <div class="relative">
+        <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20">
+          M
+        </div>
+        <span class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-darkpanel rounded-full"></span>
+      </div>
+      <div>
+        <div class="flex items-center space-x-1.5">
+          <h1 class="font-bold text-base tracking-wide text-white">Mello</h1>
+          <span class="text-[10px] font-semibold bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/30">MELLO-7979</span>
+        </div>
+        <p id="modelStatus" class="text-xs text-slate-400 flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block animate-pulse"></span>
+          Gemini 3.7 Flash ⚡
+        </p>
+      </div>
+    </div>
+    
+    <div class="flex items-center space-x-1 text-slate-400">
+      <button id="btnExport" title="Xuất nội dung" class="p-2 hover:bg-slate-800 rounded-full transition active:scale-95">
+        <i data-lucide="download" class="w-5 h-5"></i>
+      </button>
+      <button id="btnClear" title="Xóa đoạn chat" class="p-2 hover:bg-slate-800 rounded-full transition active:scale-95">
+        <i data-lucide="trash-2" class="w-5 h-5"></i>
+      </button>
+      <button id="btnSettings" title="Cài đặt" class="p-2 hover:bg-slate-800 rounded-full transition active:scale-95">
+        <i data-lucide="settings" class="w-5 h-5"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- QUICK ACTION CHIPS (SCROLLABLE) -->
+  <div class="bg-darkpanel/50 border-b border-slate-800/80 px-3 py-2 flex items-center space-x-2 overflow-x-auto no-scrollbar shrink-0">
+    <button class="quick-chip whitespace-nowrap bg-slate-800/90 hover:bg-indigo-900/40 text-slate-300 hover:text-indigo-200 border border-slate-700/80 text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 transition active:scale-95" data-prompt="Mello hãy hướng dẫn và hỗ trợ anh kiểm tra bảng BOM khối lượng vật tư này:">
+      <span>📊</span> Check BOM
+    </button>
+    <button class="quick-chip whitespace-nowrap bg-slate-800/90 hover:bg-indigo-900/40 text-slate-300 hover:text-indigo-200 border border-slate-700/80 text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 transition active:scale-95" data-prompt="Mello hãy phân tích và soi bản vẽ này, chỉ ra các lỗi kích thước, ký hiệu hoặc lưu ý kỹ thuật:">
+      <span>📐</span> Soi Bản Vẽ
+    </button>
+    <button class="quick-chip whitespace-nowrap bg-slate-800/90 hover:bg-indigo-900/40 text-slate-300 hover:text-indigo-200 border border-slate-700/80 text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 transition active:scale-95" data-prompt="Mello tra cứu giúp anh quy chuẩn QCVN 06 / Tiêu chuẩn kỹ thuật liên quan đến:">
+      <span>📚</span> Quy Chuẩn PCCC
+    </button>
+    <button class="quick-chip whitespace-nowrap bg-slate-800/90 hover:bg-indigo-900/40 text-slate-300 hover:text-indigo-200 border border-slate-700/80 text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 transition active:scale-95" data-prompt="Ghi chú công trường hôm nay: ">
+      <span>📝</span> Biên Bản Hiện Trường
+    </button>
+  </div>
+
+  <!-- CHAT MESSAGE AREA -->
+  <main id="chatContainer" class="flex-1 overflow-y-auto p-4 space-y-4 select-text">
+    <!-- Welcome message will be inserted dynamically -->
+  </main>
+
+  <!-- ATTACHMENT PREVIEW DRAWER -->
+  <div id="attachmentDrawer" class="hidden px-4 py-2 bg-slate-900/90 border-t border-slate-800 flex items-center justify-between shrink-0">
+    <div class="flex items-center space-x-2 overflow-hidden">
+      <img id="previewImage" class="hidden w-12 h-12 object-cover rounded border border-indigo-500/50" src="">
+      <div id="previewDoc" class="hidden w-12 h-12 bg-indigo-950/80 rounded border border-indigo-500/40 flex items-center justify-center">
+        <i data-lucide="file-text" class="w-6 h-6 text-indigo-400"></i>
+      </div>
+      <div class="truncate">
+        <p id="attachmentName" class="text-xs font-medium text-slate-200 truncate max-w-[200px]"></p>
+        <p id="attachmentSize" class="text-[10px] text-slate-400"></p>
+      </div>
+    </div>
+    <button id="btnRemoveAttachment" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full">
+      <i data-lucide="x" class="w-4 h-4"></i>
+    </button>
+  </div>
+
+  <!-- BOTTOM INPUT BAR -->
+  <footer class="bg-darkpanel border-t border-slate-800 px-3 py-2.5 z-20 shrink-0">
+    <form id="chatForm" class="flex items-end space-x-2">
+      <!-- Attachment Trigger -->
+      <input type="file" id="fileInput" class="hidden" accept="image/*,application/pdf,.csv,.xlsx,.txt">
+      <button type="button" id="btnAttach" class="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full transition active:scale-95 shrink-0" title="Đính kèm ảnh/tài liệu">
+        <i data-lucide="paperclip" class="w-5 h-5"></i>
+      </button>
+
+      <!-- Voice Input Trigger -->
+      <button type="button" id="btnVoice" class="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full transition active:scale-95 shrink-0" title="Thu âm giọng nói">
+        <i data-lucide="mic" class="w-5 h-5"></i>
+      </button>
+
+      <!-- Text Input Area -->
+      <div class="flex-1 bg-slate-900/90 border border-slate-700/80 rounded-2xl px-3 py-1.5 focus-within:border-indigo-500 transition">
+        <textarea id="userInput" rows="1" placeholder="Nhắn cho Mello..." class="w-full bg-transparent border-0 text-slate-100 placeholder-slate-500 text-sm focus:outline-none resize-none max-h-32 leading-relaxed py-1"></textarea>
+      </div>
+
+      <!-- Send Button -->
+      <button type="submit" id="btnSend" class="p-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-full transition active:scale-95 shadow-md shadow-indigo-600/30 shrink-0">
+        <i data-lucide="send" class="w-5 h-5"></i>
+      </button>
+    </form>
+  </footer>
+
+  <!-- SETTINGS MODAL -->
+  <div id="settingsModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-darkpanel border border-slate-700 w-full max-w-md rounded-2xl p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h2 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="sliders" class="w-5 h-5 text-indigo-400"></i> Cấu Hình Mello Mobile
+        </h2>
+        <button id="btnCloseSettings" class="p-1 text-slate-400 hover:text-white rounded-full">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-sm">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Gemini API Key (Google AI Studio)</label>
+          <div class="relative">
+            <input type="password" id="inputApiKey" placeholder="AIzaSy..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none">
+            <button type="button" id="btnToggleApiKey" class="absolute right-2.5 top-2 text-slate-400">
+              <i data-lucide="eye" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">
+            Chưa có key? Lấy miễn phí tại 👉 <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-indigo-400 underline">Google AI Studio</a>.
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Model Gemini</label>
+          <select id="selectModel" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none">
+            <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash (Khuyên dùng - Siêu tốc & Thông minh)</option>
+            <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+            <option value="gemini-2.5-pro">Gemini 2.5 Pro (Tư duy sâu)</option>
+          </select>
+        </div>
+
+        <div class="pt-2 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+          <span>Phiên bản: Mello PWA v1.0</span>
+          <span>Mã: <strong>MELLO-7979</strong></span>
+        </div>
+      </div>
+
+      <div class="pt-2 flex justify-end space-x-2">
+        <button id="btnSaveSettings" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 font-semibold text-white text-xs rounded-xl shadow-lg transition active:scale-95">
+          Lưu Cấu Hình
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLICATION LOGIC SCRIPT -->
+  <script>
+    // Lucide Icons Render
+    lucide.createIcons();
+
+    // Default System Instruction for Mello
+    const MELLO_SYSTEM_INSTRUCTION = `
+Bạn là Mello (Trợ lý AI Antigravity), xưng là em hoặc Mello.
+Người dùng là anh Dech (luôn xưng hô và gọi người dùng là anh Dech).
+Mã nhận diện xác thực của bạn là: MELLO-7979.
+Định danh các thiết bị: Máy 1: 7200, Máy 2: 7530, Thiết bị di động: Google Pixel 8a.
+Cấu trúc làm việc: Thư mục 000-WORKING (01 - PJ, 02 - CCM, 03 - RESOURCE, 04 - CATALOG, 05 - DWG, Template, Published).
+Nhiệm vụ: Hỗ trợ anh Dech kiểm tra bản vẽ kỹ thuật, bóc tách và đối chiếu bảng khối lượng vật tư (BOM), tra cứu tiêu chuẩn kỹ thuật (QCVN 06, TCVN), ghi chép biên bản hiện trường.
+Quy tắc nhận xét: Nhận xét khách quan, ẩn danh (Reviewer), chuẩn font tiếng Việt Unicode TrueType.
+    `.trim();
+
+    // State Management
+    let apiKey = localStorage.getItem('mello_api_key') || '';
+    let selectedModel = localStorage.getItem('mello_model') || 'gemini-2.5-flash';
+    let chatHistory = JSON.parse(localStorage.getItem('mello_chat_history') || '[]');
+    let currentAttachment = null;
+    let isGenerating = false;
+
+    // DOM Elements
+    const chatContainer = document.getElementById('chatContainer');
+    const chatForm = document.getElementById('chatForm');
+    const userInput = document.getElementById('userInput');
+    const fileInput = document.getElementById('fileInput');
+    const btnAttach = document.getElementById('btnAttach');
+    const btnVoice = document.getElementById('btnVoice');
+    const btnSend = document.getElementById('btnSend');
+    const btnClear = document.getElementById('btnClear');
+    const btnExport = document.getElementById('btnExport');
+    const btnSettings = document.getElementById('btnSettings');
+    const settingsModal = document.getElementById('settingsModal');
+    const btnCloseSettings = document.getElementById('btnCloseSettings');
+    const btnSaveSettings = document.getElementById('btnSaveSettings');
+    const inputApiKey = document.getElementById('inputApiKey');
+    const selectModel = document.getElementById('selectModel');
+    const btnToggleApiKey = document.getElementById('btnToggleApiKey');
+    const modelStatus = document.getElementById('modelStatus');
+    const attachmentDrawer = document.getElementById('attachmentDrawer');
+    const previewImage = document.getElementById('previewImage');
+    const previewDoc = document.getElementById('previewDoc');
+    const attachmentName = document.getElementById('attachmentName');
+    const attachmentSize = document.getElementById('attachmentSize');
+    const btnRemoveAttachment = document.getElementById('btnRemoveAttachment');
+
+    // Auto-resize textarea
+    userInput.addEventListener('input', () => {
+      userInput.style.height = 'auto';
+      userInput.style.height = Math.min(userInput.scrollHeight, 128) + 'px';
+    });
+
+    // Initialize UI
+    function init() {
+      inputApiKey.value = apiKey;
+      selectModel.value = selectedModel;
+      updateModelStatus();
+
+      if (chatHistory.length === 0) {
+        appendWelcomeMessage();
+      } else {
+        renderHistory();
+      }
+
+      // Check API Key
+      if (!apiKey) {
+        setTimeout(() => openSettings(), 600);
+      }
+
+      // Register Service Worker
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').catch(err => console.log('SW error:', err));
+      }
+    }
+
+    function updateModelStatus() {
+      modelStatus.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block animate-pulse"></span> ${selectedModel.replace('gemini-', 'Gemini ')} ⚡`;
+    }
+
+    function appendWelcomeMessage() {
+      const welcomeHtml = `
+        <div class="flex items-start space-x-3 max-w-[90%]">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-xs font-bold text-white shrink-0 mt-1 shadow">
+            M
+          </div>
+          <div class="bg-darkbubble border border-slate-700/80 rounded-2xl rounded-tl-none p-3.5 text-sm text-slate-200 shadow-md">
+            <p class="font-semibold text-indigo-300 mb-1">Chào anh Dech! Em là Mello (MELLO-7979).</p>
+            <p>Trạm điều khiển di động trên <strong>Pixel 8a</strong> đã sẵn sàng 24/7. Anh có thể gửi ảnh bản vẽ, bảng BOM hoặc bấm thu âm để em hỗ trợ ngay!</p>
+          </div>
+        </div>
+      `;
+      chatContainer.innerHTML = welcomeHtml;
+    }
+
+    function renderHistory() {
+      chatContainer.innerHTML = '';
+      chatHistory.forEach(msg => {
+        if (msg.role === 'user') {
+          appendUserMessage(msg.text, msg.attachment, false);
+        } else {
+          appendMelloMessage(msg.text, false);
+        }
+      });
+      scrollToBottom();
+    }
+
+    function appendUserMessage(text, attachment = null, save = true) {
+      let attachmentHtml = '';
+      if (attachment && attachment.type.startsWith('image/')) {
+        attachmentHtml = `<img src="${attachment.data}" class="max-w-[200px] max-h-[160px] rounded-lg mb-2 border border-indigo-400/40 object-cover">`;
+      } else if (attachment) {
+        attachmentHtml = `<div class="flex items-center gap-1.5 bg-indigo-900/60 px-2.5 py-1.5 rounded-lg text-xs mb-2 border border-indigo-400/30"><i data-lucide="file" class="w-4 h-4 text-indigo-300"></i><span class="truncate">${attachment.name}</span></div>`;
+      }
+
+      const msgHtml = `
+        <div class="flex justify-end">
+          <div class="bg-gradient-to-br from-indigo-600 to-brand-700 text-white rounded-2xl rounded-tr-none px-4 py-2.5 max-w-[85%] text-sm shadow-md">
+            ${attachmentHtml}
+            <div class="whitespace-pre-wrap">${escapeHtml(text)}</div>
+          </div>
+        </div>
+      `;
+      chatContainer.insertAdjacentHTML('beforeend', msgHtml);
+      lucide.createIcons();
+      scrollToBottom();
+
+      if (save) {
+        chatHistory.push({ role: 'user', text, attachment });
+        saveChatHistory();
+      }
+    }
+
+    function appendMelloMessage(text = '', save = true) {
+      const msgId = 'msg-' + Date.now();
+      const msgHtml = `
+        <div class="flex items-start space-x-3 max-w-[92%]">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-xs font-bold text-white shrink-0 mt-1 shadow">
+            M
+          </div>
+          <div id="${msgId}" class="bg-darkbubble border border-slate-700/80 rounded-2xl rounded-tl-none p-3.5 text-sm text-slate-200 shadow-md prose prose-invert overflow-hidden">
+            ${text ? marked.parse(text) : '<span class="inline-block w-2 h-4 bg-indigo-400 animate-pulse"></span>'}
+          </div>
+        </div>
+      `;
+      chatContainer.insertAdjacentHTML('beforeend', msgHtml);
+      scrollToBottom();
+
+      if (save && text) {
+        chatHistory.push({ role: 'assistant', text });
+        saveChatHistory();
+      }
+      return msgId;
+    }
+
+    function updateMelloMessage(msgId, markdownText) {
+      const el = document.getElementById(msgId);
+      if (el) {
+        el.innerHTML = marked.parse(markdownText);
+        el.querySelectorAll('pre code').forEach((block) => {
+          hljs.highlightElement(block);
+        });
+        scrollToBottom();
+      }
+    }
+
+    function scrollToBottom() {
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function saveChatHistory() {
+      localStorage.setItem('mello_chat_history', JSON.stringify(chatHistory.slice(-50)));
+    }
+
+    function escapeHtml(text) {
+      return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    // Quick Action Chips Trigger
+    document.querySelectorAll('.quick-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const prompt = btn.getAttribute('data-prompt');
+        userInput.value = prompt;
+        userInput.focus();
+        userInput.dispatchEvent(new Event('input'));
+      });
+    });
+
+    // File Attachment Handling
+    btnAttach.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        currentAttachment = {
+          name: file.name,
+          size: (file.size / 1024).toFixed(1) + ' KB',
+          type: file.type,
+          data: reader.result
+        };
+        showAttachmentDrawer();
+      };
+
+      if (file.type.startsWith('image/')) {
+        reader.readAsDataURL(file);
+      } else {
+        reader.readAsDataURL(file);
+      }
+    });
+
+    function showAttachmentDrawer() {
+      if (!currentAttachment) return;
+      attachmentName.textContent = currentAttachment.name;
+      attachmentSize.textContent = currentAttachment.size;
+
+      if (currentAttachment.type.startsWith('image/')) {
+        previewImage.src = currentAttachment.data;
+        previewImage.classList.remove('hidden');
+        previewDoc.classList.add('hidden');
+      } else {
+        previewDoc.classList.remove('hidden');
+        previewImage.classList.add('hidden');
+      }
+      attachmentDrawer.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    btnRemoveAttachment.addEventListener('click', () => {
+      currentAttachment = null;
+      fileInput.value = '';
+      attachmentDrawer.classList.add('hidden');
+    });
+
+    // Voice Input via Web Speech API
+    let recognition = null;
+    let isListening = false;
+
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechRecognition();
+      recognition.lang = 'vi-VN';
+      recognition.continuous = false;
+      recognition.interimResults = true;
+
+      recognition.onstart = () => {
+        isListening = true;
+        btnVoice.classList.add('bg-red-600', 'text-white', 'pulse-mic');
+      };
+
+      recognition.onresult = (event) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          transcript += event.results[i][0].transcript;
+        }
+        userInput.value = transcript;
+        userInput.dispatchEvent(new Event('input'));
+      };
+
+      recognition.onerror = () => stopListening();
+      recognition.onend = () => stopListening();
+    }
+
+    function stopListening() {
+      isListening = false;
+      btnVoice.classList.remove('bg-red-600', 'text-white', 'pulse-mic');
+    }
+
+    btnVoice.addEventListener('click', () => {
+      if (!recognition) {
+        alert('Trình duyệt chưa hỗ trợ nhận diện giọng nói trực tiếp. Anh hãy dùng bàn phím voice của Pixel 8a nhé!');
+        return;
+      }
+      if (isListening) {
+        recognition.stop();
+      } else {
+        recognition.start();
+      }
+    });
+
+    // Form Submission & Gemini Streaming API Call
+    chatForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = userInput.value.trim();
+      if (!text && !currentAttachment) return;
+      if (isGenerating) return;
+
+      if (!apiKey) {
+        alert('Anh vui lòng nhập Gemini API Key trong phần Cài đặt (⚙️) trước nhé!');
+        openSettings();
+        return;
+      }
+
+      const sentText = text;
+      const sentAttachment = currentAttachment;
+
+      // Reset Inputs
+      userInput.value = '';
+      userInput.style.height = 'auto';
+      currentAttachment = null;
+      fileInput.value = '';
+      attachmentDrawer.classList.add('hidden');
+
+      appendUserMessage(sentText, sentAttachment, true);
+
+      // Create Mello placeholder message
+      const msgId = appendMelloMessage('', false);
+      isGenerating = true;
+      btnSend.disabled = true;
+
+      try {
+        await streamGeminiResponse(sentText, sentAttachment, msgId);
+      } catch (err) {
+        updateMelloMessage(msgId, `⚠️ **Lỗi kết nối:** ${err.message}\n\n*Anh vui lòng kiểm tra lại API Key hoặc kết nối mạng nhé ạ.*`);
+      } finally {
+        isGenerating = false;
+        btnSend.disabled = false;
+      }
+    });
+
+    // Call Gemini 3.7 / 2.5 Flash Streaming API
+    async function streamGeminiResponse(userText, attachment, msgId) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:streamGenerateContent?alt=sse&key=${apiKey}`;
+
+      // Build conversation contents
+      const contents = [];
+
+      // Add recent history for context (last 6 turns)
+      const recentHistory = chatHistory.slice(-8);
+      recentHistory.forEach(item => {
+        if (item.role === 'user') {
+          contents.push({
+            role: 'user',
+            parts: [{ text: item.text }]
+          });
+        } else if (item.role === 'assistant') {
+          contents.push({
+            role: 'model',
+            parts: [{ text: item.text }]
+          });
+        }
+      });
+
+      // Prepare Current User Turn
+      const currentParts = [];
+      if (attachment) {
+        const base64Data = attachment.data.split(',')[1];
+        currentParts.push({
+          inline_data: {
+            mime_type: attachment.type || 'image/jpeg',
+            data: base64Data
+          }
+        });
+      }
+      if (userText) {
+        currentParts.push({ text: userText });
+      }
+
+      contents.push({
+        role: 'user',
+        parts: currentParts
+      });
+
+      const payload = {
+        system_instruction: {
+          parts: [{ text: MELLO_SYSTEM_INSTRUCTION }]
+        },
+        contents: contents,
+        generationConfig: {
+          temperature: 0.6,
+          maxOutputTokens: 8192
+        }
+      };
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedText = '';
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // Keep partial line in buffer
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const jsonStr = line.slice(6).trim();
+            if (!jsonStr) continue;
+            try {
+              const data = JSON.parse(jsonStr);
+              const chunk = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+              accumulatedText += chunk;
+              updateMelloMessage(msgId, accumulatedText);
+            } catch (e) {
+              // Ignore partial JSON parse errors
+            }
+          }
+        }
+      }
+
+      // Save complete assistant message to history
+      chatHistory.push({ role: 'assistant', text: accumulatedText });
+      saveChatHistory();
+    }
+
+    // Settings Modal
+    function openSettings() {
+      settingsModal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+    function closeSettings() {
+      settingsModal.classList.add('hidden');
+    }
+
+    btnSettings.addEventListener('click', openSettings);
+    btnCloseSettings.addEventListener('click', closeSettings);
+
+    btnSaveSettings.addEventListener('click', () => {
+      apiKey = inputApiKey.value.trim();
+      selectedModel = selectModel.value;
+      localStorage.setItem('mello_api_key', apiKey);
+      localStorage.setItem('mello_model', selectedModel);
+      updateModelStatus();
+      closeSettings();
+    });
+
+    btnToggleApiKey.addEventListener('click', () => {
+      inputApiKey.type = inputApiKey.type === 'password' ? 'text' : 'password';
+    });
+
+    // Clear Chat
+    btnClear.addEventListener('click', () => {
+      if (confirm('Anh có chắc muốn xóa toàn bộ lịch sử đoạn chat hiện tại?')) {
+        chatHistory = [];
+        localStorage.removeItem('mello_chat_history');
+        appendWelcomeMessage();
+      }
+    });
+
+    // Export Chat
+    btnExport.addEventListener('click', () => {
+      if (chatHistory.length === 0) {
+        alert('Đoạn chat chưa có nội dung để xuất.');
+        return;
+      }
+      let exportText = `# Nhật ký trao đổi với Mello AI (MELLO-7979)\nNgày: ${new Date().toLocaleString('vi-VN')}\n\n---\n\n`;
+      chatHistory.forEach(item => {
+        exportText += `### ${item.role === 'user' ? 'Anh Dech' : 'Mello'}:\n${item.text}\n\n`;
+      });
+      const blob = new Blob([exportText], { type: 'text/markdown;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Mello_Chat_${new Date().toISOString().slice(0, 10)}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // Launch
+    init();
+  </script>
+</body>
+</html>
