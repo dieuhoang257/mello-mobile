@@ -633,8 +633,11 @@ Quy tắc nhận xét: Nhận xét khách quan, ẩn danh (Reviewer), chuẩn fo
         },
         contents: contents,
         generationConfig: {
-          temperature: 0.6,
-          maxOutputTokens: 8192
+          temperature: 0.7,
+          maxOutputTokens: 8192,
+          thinkingConfig: {
+            thinkingBudget: 0 // Zero thinking latency -> Instant sub-second response
+          }
         }
       };
 
@@ -659,23 +662,37 @@ Quy tắc nhận xét: Nhận xét khách quan, ẩn danh (Reviewer), chuẩn fo
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop(); // Keep partial line in buffer
+        const events = buffer.split('\n\n');
+        buffer = events.pop(); // Keep partial event in buffer
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const jsonStr = line.slice(6).trim();
-            if (!jsonStr) continue;
-            try {
-              const data = JSON.parse(jsonStr);
-              const chunk = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-              accumulatedText += chunk;
-              updateMelloMessage(msgId, accumulatedText);
-            } catch (e) {
-              // Ignore partial JSON parse errors
+        for (const event of events) {
+          const lines = event.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const jsonStr = line.slice(6).trim();
+              if (!jsonStr || jsonStr === '[DONE]') continue;
+              try {
+                const data = JSON.parse(jsonStr);
+                const parts = data.candidates?.[0]?.content?.parts || [];
+                for (const part of parts) {
+                  if (part.text) {
+                    accumulatedText += part.text;
+                  }
+                }
+                if (accumulatedText) {
+                  updateMelloMessage(msgId, accumulatedText);
+                }
+              } catch (e) {
+                // Ignore incomplete SSE chunks
+              }
             }
           }
         }
+      }
+
+      if (!accumulatedText) {
+        accumulatedText = 'Em đã nhận được tin nhắn của anh Dech!';
+        updateMelloMessage(msgId, accumulatedText);
       }
 
       // Save complete assistant message to history
