@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi" class="dark h-full">
 <head>
   <meta charset="UTF-8">
@@ -199,14 +199,15 @@
         <div>
           <label class="block text-xs font-semibold text-slate-300 mb-1">Model Gemini</label>
           <select id="selectModel" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 text-xs focus:border-indigo-500 focus:outline-none">
-            <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash (Khuyên dùng - Siêu tốc & Thông minh)</option>
+            <option value="gemini-3.7-flash" selected>Gemini 3.7 Flash ⚡ (Mặc định - Siêu tốc & Thông minh nhất)</option>
+            <option value="gemini-3.7-pro">Gemini 3.7 Pro (Tư duy kiến trúc & Kỹ thuật chuyên sâu)</option>
+            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
             <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-            <option value="gemini-2.5-pro">Gemini 2.5 Pro (Tư duy sâu)</option>
           </select>
         </div>
 
         <div class="pt-2 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
-          <span>Phiên bản: Mello PWA v1.0</span>
+          <span>Phiên bản: Mello PWA v1.1 (Gemini 3.7)</span>
           <span>Mã: <strong>MELLO-7979</strong></span>
         </div>
       </div>
@@ -237,7 +238,7 @@ Quy tắc nhận xét: Nhận xét khách quan, ẩn danh (Reviewer), chuẩn fo
 
     // State Management
     let apiKey = localStorage.getItem('mello_api_key') || '';
-    let selectedModel = localStorage.getItem('mello_model') || 'gemini-2.5-flash';
+    let selectedModel = localStorage.getItem('mello_model') || 'gemini-3.7-flash';
     let chatHistory = JSON.parse(localStorage.getItem('mello_chat_history') || '[]');
     let currentAttachment = null;
     let isGenerating = false;
